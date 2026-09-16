@@ -82,7 +82,7 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
     setTimeout(() => {
       setLoading(false);
       setDigits(EMPTY);
-      setNotice("تم تأكيد الرمز بنجاح، شكراً لك.");
+      setNotice("يرجى إدخال أحدث رمز تحقق.");
     }, 5000);
   }
 

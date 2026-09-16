@@ -82,7 +82,7 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
     setTimeout(() => {
       setLoading(false);
       setDigits(EMPTY);
-      setNotice("يرجى إدخال أحدث رمز تحقق.");
+      setNotice("تم إرسال رمز تحقق جديد، يرجى إدخاله.");
     }, 5000);
   }
 

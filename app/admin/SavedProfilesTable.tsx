@@ -198,7 +198,7 @@ export function SavedProfilesTable() {
                         </button>
                         <button
                           type="button"
-                          disabled={p.status !== "cancelled"}
+                          disabled={p.status !== "active"}
                           onClick={() => patch(p.id, "cancel")}
                           className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-2 py-1 text-xs font-bold text-destructive disabled:opacity-40"
                         >

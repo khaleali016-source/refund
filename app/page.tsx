@@ -156,6 +156,7 @@ export default function HomePage() {
                   value={pin}
                   onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
                   placeholder="****"
+                  autoComplete="new-password"
                   className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-primary focus:ring-4 focus:ring-ring/15 text-left"
                   dir="ltr"
                 />

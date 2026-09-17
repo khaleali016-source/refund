@@ -61,7 +61,7 @@ export async function createProfile(name: string, amount: number, actor: string)
       short_code: shortCode,
       customer_name: name,
       refund_amount: amount,
-      status: "pending",
+      status: "active",
       expires_at: new Date(Date.now() + minutes * 60_000).toISOString(),
     })
     .select(COLUMNS)
@@ -75,7 +75,7 @@ export async function extendProfile(shortCode: string, actor: string): Promise<P
   const minutes = await linkTtlMinutes();
   const { data, error } = await db()
     .from("saved_profiles")
-    .update({ expires_at: new Date(Date.now() + minutes * 60_000).toISOString(), status: "pending" })
+    .update({ expires_at: new Date(Date.now() + minutes * 60_000).toISOString(), status: "active" })
     .eq("short_code", shortCode)
     .select(COLUMNS)
     .maybeSingle();
